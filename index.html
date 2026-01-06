@@ -1,0 +1,74 @@
+<section class="search-section">
+    <div class="search-container">
+        <input type="text" id="videoUrl" placeholder="Incolla l'URL qui...">
+        <button class="search-icon"><i class="fas fa-search"></i></button>
+    </div>
+    
+    <div id="progress-container" style="display:none; width: 600px; margin: 10px auto; background: #222; border-radius: 10px;">
+        <div id="progress-bar" style="width: 0%; height: 10px; background: var(--accent-blue); border-radius: 10px; transition: 0.3s; box-shadow: 0 0 10px var(--accent-blue);"></div>
+        <p id="progress-text" style="font-size: 12px; margin-top: 5px;">0%</p>
+    </div>
+
+    <button class="btn-download-main" id="startDownload">Download</button>
+</section>
+
+<section class="format-cards">
+    <div class="card blue active-card" onclick="selectFormat('mp4', this)">
+        <h3>MP4</h3>
+        <i class="fas fa-play-circle"></i>
+    </div>
+    <div class="card purple" onclick="selectFormat('mp3', this)">
+        <h3>MP3</h3>
+        <i class="fas fa-music"></i>
+    </div>
+    <div class="card gold">
+        <h3>4K</h3>
+        <div class="badge">4K</div>
+    </div>
+</section>
+<script>
+    let selectedFormat = 'mp4';
+
+    function selectFormat(fmt, el) {
+        selectedFormat = fmt;
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active-card'));
+        el.classList.add('active-card');
+    }
+
+    async function updateProgress() {
+        const interval = setInterval(async () => {
+            const res = await fetch('http://127.0.0.1:5000/progress');
+            const data = await res.json();
+            const percent = data.percent.replace('%', '');
+            
+            document.getElementById('progress-bar').style.width = data.percent;
+            document.getElementById('progress-text').innerText = `Scaricando: ${data.percent}`;
+            
+            if (percent === "100") clearInterval(interval);
+        }, 800);
+        return interval;
+    }
+
+    document.getElementById('startDownload').addEventListener('click', async () => {
+        const url = document.getElementById('videoUrl').value;
+        if (!url) return alert("Inserisci un link!");
+
+        document.getElementById('progress-container').style.display = 'block';
+        const progressInterval = updateProgress();
+
+        try {
+            const response = await fetch('http://127.0.0.1:5000/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url, format: selectedFormat })
+            });
+            const result = await response.json();
+            alert(result.message || result.error);
+        } catch (e) {
+            alert("Errore di connessione al server");
+        } finally {
+            clearInterval(await progressInterval);
+            document.getElementById('progress-container').style.display = 'none';
+        }
+    });
+</script>
